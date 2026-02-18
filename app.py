@@ -8,10 +8,7 @@ from utils.sessao import (
     limpar_sessao,
 )
 
-from integracoes.ultramsg import (
-    enviar_mensagem,
-    enviar_botoes,
-)
+from integracoes.ultramsg import enviar_mensagem
 
 app = Flask(__name__)
 
@@ -27,7 +24,7 @@ def webhook():
         data = request.json or {}
         print("DADOS RECEBIDOS:", data)
 
-        # 🔥 IGNORAR mensagens enviadas pelo próprio bot
+        # Ignorar mensagens enviadas pelo próprio bot
         if data.get("data", {}).get("fromMe") is True:
             return jsonify({"status": "ignored_self"}), 200
 
@@ -53,14 +50,12 @@ def webhook():
         # ==============================
         if etapa == "inicio":
 
-            enviar_botoes(
+            enviar_mensagem(
                 numero,
-                "Funerária Marcelo",
-                "👋 Olá! Como podemos ajudar?",
-                [
-                    {"id": "1", "title": "Serviço funerário"},
-                    {"id": "9", "title": "Falar com atendente"}
-                ]
+                "👋 Olá! Bem-vindo à Funerária Marcelo.\n\n"
+                "Digite:\n"
+                "1 - Serviço funerário\n"
+                "9 - Falar com atendente"
             )
 
             atualizar_etapa(numero, "menu")
@@ -91,14 +86,12 @@ def webhook():
 
             else:
 
-                enviar_botoes(
+                enviar_mensagem(
                     numero,
-                    "Funerária Marcelo",
-                    "Escolha uma opção válida:",
-                    [
-                        {"id": "1", "title": "Serviço funerário"},
-                        {"id": "9", "title": "Falar com atendente"}
-                    ]
+                    "Opção inválida.\n\n"
+                    "Digite:\n"
+                    "1 - Serviço funerário\n"
+                    "9 - Falar com atendente"
                 )
 
             return jsonify({"status": "ok"}), 200
