@@ -1,5 +1,6 @@
 import requests
 import os
+import json
 
 
 ULTRAMSG_INSTANCE = os.environ.get("ULTRAMSG_INSTANCE")
@@ -21,16 +22,22 @@ def enviar_mensagem(numero, mensagem):
 
 
 def enviar_botoes(numero, titulo, texto, botoes):
-    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE}/messages/buttons"
+    """
+    Envio de botão no formato novo da UltraMsg
+    """
+
+    url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE}/messages/interactive"
 
     payload = {
         "token": ULTRAMSG_TOKEN,
         "to": numero,
-        "title": titulo,
+        "type": "button",
+        "header": titulo,
         "body": texto,
-        "buttons": str(botoes)  # 🔥 IMPORTANTE
+        "footer": "",
+        "buttons": json.dumps(botoes)
     }
 
     response = requests.post(url, data=payload)
-    print("RESPOSTA BOTAO:", response.text)
+    print("RESPOSTA INTERACTIVE:", response.text)
     return response.text
