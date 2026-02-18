@@ -1,8 +1,17 @@
 from flask import Flask, request, jsonify
 import os
 
-from utils.sessao import obter_sessao, atualizar_etapa, salvar_dado, limpar_sessao
-from integracoes.ultramsg import enviar_mensagem
+from utils.sessao import (
+    obter_sessao,
+    atualizar_etapa,
+    salvar_dado,
+    limpar_sessao,
+)
+
+from integracoes.ultramsg import (
+    enviar_mensagem,
+    enviar_botoes,
+)
 
 app = Flask(__name__)
 
@@ -18,76 +27,96 @@ def webhook():
         data = request.json or {}
         print("DADOS RECEBIDOS:", data)
 
-        # UltraMsg geralmente envia assim:
-        # {
-        #   "data": {
-        #       "from": "551699999999",
-        #       "body": "oi"
-        #   }
-        # }
-
         numero = None
         mensagem = None
 
-        # Tentativa padrão UltraMsg
+        # UltraMsg geralmente envia dentro de "data"
         if "data" in data:
             numero = data["data"].get("from")
             mensagem = data["data"].get("body")
 
-        # Fallback se vier diferente
+        # fallback
         if not numero:
             numero = data.get("from")
 
         if not mensagem:
             mensagem = data.get("body")
 
-        if not numero or not mensagem:
-            return jsonify({"status": "ignored"}), 200
+        if not numero:
+            return jsonify({"status": "no number"}), 200
+
+        # se clicou em botão, UltraMsg pode mandar buttonId
+        if "data" in data and data["data"].get("buttonId"):
+            mensagem = data["data"].get("buttonId")
+
+        if not mensagem:
+            return jsonify({"status": "no message"}), 200
 
         mensagem = mensagem.strip().lower()
 
-        # ===== CONTROLE DE SESSÃO =====
         sessao = obter_sessao(numero)
         etapa = sessao["etapa"]
 
-        # ===== INÍCIO =====
+        # ==============================
+        # INÍCIO
+        # ==============================
         if etapa == "inicio":
-            enviar_mensagem(
+
+            enviar_botoes(
                 numero,
-                "👋 Olá! Bem-vindo à Funerária Marcelo.\n\n"
-                "Digite:\n"
-                "1️⃣ Serviço funerário\n"
-                "9️⃣ Falar com atendente"
+                "Funerária Marcelo",
+                "👋 Olá! Como podemos ajudar?",
+                [
+                    {"id": "1", "title": "Serviço funerário"},
+                    {"id": "9", "title": "Falar com atendente"}
+                ]
             )
+
             atualizar_etapa(numero, "menu")
             return jsonify({"status": "ok"}), 200
 
-        # ===== MENU =====
+        # ==============================
+        # MENU
+        # ==============================
         if etapa == "menu":
+
             if mensagem == "1":
+
                 enviar_mensagem(
                     numero,
                     "Antes de continuarmos, qual é o seu nome?"
                 )
+
                 atualizar_etapa(numero, "nome")
 
             elif mensagem == "9":
+
                 enviar_mensagem(
                     numero,
                     "👤 Um atendente humano falará com você em instantes."
                 )
+
                 limpar_sessao(numero)
 
             else:
-                enviar_mensagem(
+
+                enviar_botoes(
                     numero,
-                    "Opção inválida.\nDigite 1 para serviço funerário."
+                    "Funerária Marcelo",
+                    "Escolha uma opção válida:",
+                    [
+                        {"id": "1", "title": "Serviço funerário"},
+                        {"id": "9", "title": "Falar com atendente"}
+                    ]
                 )
 
             return jsonify({"status": "ok"}), 200
 
-        # ===== NOME =====
+        # ==============================
+        # NOME
+        # ==============================
         if etapa == "nome":
+
             salvar_dado(numero, "nome_cliente", mensagem)
 
             enviar_mensagem(
@@ -99,8 +128,11 @@ def webhook():
             atualizar_etapa(numero, "cidade")
             return jsonify({"status": "ok"}), 200
 
-        # ===== CIDADE =====
+        # ==============================
+        # CIDADE
+        # ==============================
         if etapa == "cidade":
+
             salvar_dado(numero, "cidade", mensagem)
 
             enviar_mensagem(
