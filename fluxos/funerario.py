@@ -1,194 +1,142 @@
 from datetime import datetime
-
-from utils.perguntas import (
-    perguntar_texto,
-    perguntar_telefone,
-    perguntar_sim_nao,
-    perguntar_opcao,
-)
-
-
 from utils.salvar_pedido import salvar_pedido
+from utils.sessao import salvar_dado, atualizar_etapa, limpar_sessao
 
 
+def fluxo_funerario(numero, mensagem, sessao, enviar_mensagem):
+    etapa = sessao["etapa"]
+    dados = sessao["dados"]
 
-def iniciar_servico_funerario():
-    print("\n🕊️ Atendimento Funerário - Funerária Marcelo")
-    print("Sentimos muito pela sua perda.")
-    print("Vou fazer algumas perguntas para agilizar o atendimento.\n")
+    # ==============================
+    # NOME
+    # ==============================
+    if etapa == "nome":
+        salvar_dado(numero, "nome_cliente", mensagem)
+        enviar_mensagem(numero, "📍 Cidade do atendimento?")
+        atualizar_etapa(numero, "cidade")
+        return
 
-    cliente_nome = perguntar_texto(
-        "Antes de começarmos, qual é o seu nome? "
-    )
+    # ==============================
+    # CIDADE
+    # ==============================
+    if etapa == "cidade":
+        salvar_dado(numero, "cidade", mensagem)
+        enviar_mensagem(
+            numero,
+            "⚙️ Tipo de serviço:\n1 - Sepultamento\n2 - Cremação"
+        )
+        atualizar_etapa(numero, "tipo")
+        return
 
-    print(f"\nPrazer em te atender, {cliente_nome}.\n")
+    # ==============================
+    # TIPO
+    # ==============================
+    if etapa == "tipo":
+        salvar_dado(numero, "tipo", mensagem)
+        enviar_mensagem(
+            numero,
+            "⚖️ Porte:\n1 - Até 80kg\n2 - 81 a 120kg\n3 - Acima 120kg"
+        )
+        atualizar_etapa(numero, "porte")
+        return
 
-    pedido = {}
-    pedido["data_hora"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+    # ==============================
+    # PORTE
+    # ==============================
+    if etapa == "porte":
+        salvar_dado(numero, "porte", mensagem)
+        enviar_mensagem(
+            numero,
+            "⚰️ Urna:\n1 - Simples\n2 - Intermediária\n3 - Premium"
+        )
+        atualizar_etapa(numero, "urna")
+        return
 
-    print("📍 DADOS DO ATENDIMENTO\n")
+    # ==============================
+    # URNA
+    # ==============================
+    if etapa == "urna":
+        salvar_dado(numero, "urna", mensagem)
+        enviar_mensagem(numero, "🏛️ Haverá velório? (sim/não)")
+        atualizar_etapa(numero, "velorio")
+        return
 
-    pedido["cidade"] = perguntar_texto("Cidade do atendimento: ")
-    pedido["bairro"] = perguntar_texto(
-        "Bairro (opcional): ", obrigatorio=False, min_len=0
-    )
-    pedido["endereco"] = perguntar_texto(
-        "Endereço ou referência (opcional): ",
-        obrigatorio=False,
-        min_len=0,
-    )
+    # ==============================
+    # VELÓRIO
+    # ==============================
+    if etapa == "velorio":
+        salvar_dado(numero, "velorio", mensagem)
+        enviar_mensagem(numero, "🚐 Será necessário traslado? (sim/não)")
+        atualizar_etapa(numero, "traslado")
+        return
 
-    print("\n👤 RESPONSÁVEL\n")
+    # ==============================
+    # TRASLADO
+    # ==============================
+    if etapa == "traslado":
+        salvar_dado(numero, "traslado", mensagem)
+        enviar_mensagem(numero, "📝 Alguma observação adicional?")
+        atualizar_etapa(numero, "observacao")
+        return
 
-    print(f"{cliente_nome}, você é o responsável pelo atendimento?")
-    confirm_resp = perguntar_sim_nao("(sim/não): ")
+    # ==============================
+    # OBSERVAÇÃO + RESUMO
+    # ==============================
+    if etapa == "observacao":
 
-    if confirm_resp:
-        pedido["responsavel_nome"] = cliente_nome
-    else:
-        pedido["responsavel_nome"] = perguntar_texto(
-            "Nome do responsável: "
+        salvar_dado(numero, "observacao", mensagem)
+
+        valor = 3000
+
+        if dados["tipo"] == "2":
+            valor += 2000
+
+        if dados["porte"] == "2":
+            valor += 400
+        elif dados["porte"] == "3":
+            valor += 900
+
+        if dados["urna"] == "2":
+            valor += 600
+        elif dados["urna"] == "3":
+            valor += 1500
+
+        if dados["velorio"] in ["sim", "s"]:
+            valor += 500
+
+        if dados["traslado"] in ["sim", "s"]:
+            valor += 800
+
+        dados["valor_estimado"] = valor
+        dados["data_hora"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+        resumo = (
+            "✅ RESUMO DO ATENDIMENTO\n\n"
+            f"Nome: {dados['nome_cliente']}\n"
+            f"Cidade: {dados['cidade']}\n"
+            f"Valor estimado: R$ {valor}\n\n"
+            "Confirmar envio? (sim/não)"
         )
 
-    pedido["responsavel_telefone"] = perguntar_telefone(
-        "Telefone do responsável: "
-    )
+        enviar_mensagem(numero, resumo)
 
-    pedido["responsavel_documento"] = perguntar_texto(
-        "CPF (opcional): ",
-        obrigatorio=False,
-        min_len=0,
-    )
+        atualizar_etapa(numero, "confirmar")
+        return
 
-    print("\n🕯️ DADOS DO FALECIDO\n")
+    # ==============================
+    # CONFIRMAR
+    # ==============================
+    if etapa == "confirmar":
 
-    pedido["falecido_nome"] = perguntar_texto("Nome do falecido: ")
-    pedido["falecido_idade"] = perguntar_texto(
-        "Idade aproximada (opcional): ",
-        obrigatorio=False,
-        min_len=0,
-    )
+        if mensagem in ["sim", "s"]:
+            salvar_pedido(dados)
+            enviar_mensagem(
+                numero,
+                "✅ Pedido registrado com sucesso.\n"
+                "Nossa equipe entrará em contato."
+            )
+        else:
+            enviar_mensagem(numero, "Pedido cancelado.")
 
-    print("\n⚙️ TIPO DE SERVIÇO\n")
-
-    tipo_cod, tipo_desc = perguntar_opcao(
-        "Qual tipo de atendimento?",
-        {"1": "Sepultamento", "2": "Cremação"},
-    )
-
-    pedido["tipo_servico_cod"] = tipo_cod
-    pedido["tipo_servico"] = tipo_desc
-
-    print("\n⚖️ PORTE / PESO\n")
-
-    porte_cod, porte_desc = perguntar_opcao(
-        "Qual porte aproximado?",
-        {
-            "1": "Até 80 kg",
-            "2": "81 a 120 kg",
-            "3": "Acima de 120 kg",
-        },
-    )
-
-    pedido["porte_cod"] = porte_cod
-    pedido["porte"] = porte_desc
-
-    print("\n⚰️ URNA\n")
-
-    urna_cod, urna_desc = perguntar_opcao(
-        "Escolha o modelo de urna:",
-        {
-            "1": "Simples",
-            "2": "Intermediária",
-            "3": "Premium",
-        },
-    )
-
-    pedido["urna_cod"] = urna_cod
-    pedido["urna"] = urna_desc
-
-    print("\n🏛️ VELÓRIO\n")
-
-    tem_velorio = perguntar_sim_nao("Haverá velório? ")
-
-    pedido["velorio"] = "Sim" if tem_velorio else "Não"
-
-    if tem_velorio:
-        pedido["local_velorio"] = perguntar_texto(
-            "Local do velório: "
-        )
-    else:
-        pedido["local_velorio"] = ""
-
-    print("\n🚐 TRASLADO\n")
-
-    precisa_traslado = perguntar_sim_nao(
-        "Será necessário traslado? "
-    )
-
-    pedido["traslado"] = "Sim" if precisa_traslado else "Não"
-
-    if precisa_traslado:
-        pedido["traslado_origem"] = perguntar_texto(
-            "Origem do traslado: "
-        )
-        pedido["traslado_destino"] = perguntar_texto(
-            "Destino do traslado: "
-        )
-    else:
-        pedido["traslado_origem"] = ""
-        pedido["traslado_destino"] = ""
-
-    pedido["observacoes"] = perguntar_texto(
-        "\nObservações adicionais (opcional): ",
-        obrigatorio=False,
-        min_len=0,
-    )
-
-    valor = 3000
-
-    if pedido["tipo_servico_cod"] == "2":
-        valor += 2000
-
-    if pedido["porte_cod"] == "2":
-        valor += 400
-    elif pedido["porte_cod"] == "3":
-        valor += 900
-
-    if pedido["urna_cod"] == "2":
-        valor += 600
-    elif pedido["urna_cod"] == "3":
-        valor += 1500
-
-    if tem_velorio:
-        valor += 500
-
-    if precisa_traslado:
-        valor += 800
-
-    pedido["valor_estimado"] = valor
-
-    print("\n✅ RESUMO DO ATENDIMENTO")
-    print("----------------------------------")
-    print("Cidade:", pedido["cidade"])
-    print("Responsável:", pedido["responsavel_nome"])
-    print("Falecido:", pedido["falecido_nome"])
-    print("Tipo:", pedido["tipo_servico"])
-    print("Urna:", pedido["urna"])
-    print("Velório:", pedido["velorio"])
-    print("Traslado:", pedido["traslado"])
-    print(f"💰 Valor estimado: R$ {valor}")
-    print("----------------------------------\n")
-
-    confirmar = perguntar_sim_nao(
-        "Deseja enviar o pedido para o plantonista? "
-    )
-
-    if confirmar:
-        salvar_pedido(pedido)
-
-        print(f"\n✅ Atendimento registrado, {cliente_nome}.")
-        print("Nossa equipe entrará em contato em seguida.\n")
-    else:
-        print("\nPedido não enviado.\n")
-
+        limpar_sessao(numero)
+        return
