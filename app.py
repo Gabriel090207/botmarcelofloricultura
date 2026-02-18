@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import os
 
 from utils.sessao import obter_sessao, atualizar_etapa
 from integracoes.ultramsg import enviar_mensagem
@@ -18,6 +17,7 @@ def webhook():
     try:
         data = request.json or {}
 
+        # Ignorar mensagens do próprio bot
         if data.get("data", {}).get("fromMe") is True:
             return jsonify({"status": "ignored"}), 200
 
@@ -33,9 +33,7 @@ def webhook():
         sessao = obter_sessao(numero)
         etapa = sessao["etapa"]
 
-        # ==============================
         # MENU INICIAL
-        # ==============================
         if etapa == "inicio":
 
             enviar_mensagem(
@@ -49,9 +47,7 @@ def webhook():
             atualizar_etapa(numero, "menu")
             return jsonify({"status": "ok"}), 200
 
-        # ==============================
         # MENU
-        # ==============================
         if etapa == "menu":
 
             if mensagem == "1":
@@ -67,9 +63,7 @@ def webhook():
                 enviar_mensagem(numero, "Digite 1 ou 9.")
                 return jsonify({"status": "ok"}), 200
 
-        # ==============================
         # FLUXO FUNERÁRIO
-        # ==============================
         fluxo_funerario(numero, mensagem, sessao, enviar_mensagem)
 
         return jsonify({"status": "ok"}), 200
@@ -77,8 +71,3 @@ def webhook():
     except Exception as e:
         print("ERRO:", e)
         return jsonify({"status": "error"}), 500
-
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
