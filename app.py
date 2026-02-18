@@ -27,31 +27,22 @@ def webhook():
         data = request.json or {}
         print("DADOS RECEBIDOS:", data)
 
+        # 🔥 IGNORAR mensagens enviadas pelo próprio bot
+        if data.get("data", {}).get("fromMe") is True:
+            return jsonify({"status": "ignored_self"}), 200
+
         numero = None
         mensagem = None
 
-        # UltraMsg geralmente envia dentro de "data"
         if "data" in data:
             numero = data["data"].get("from")
             mensagem = data["data"].get("body")
 
-        # fallback
-        if not numero:
-            numero = data.get("from")
-
-        if not mensagem:
-            mensagem = data.get("body")
-
-        if not numero:
-            return jsonify({"status": "no number"}), 200
-
-        # se clicou em botão, UltraMsg pode mandar buttonId
-        if "data" in data and data["data"].get("buttonId"):
-            mensagem = data["data"].get("buttonId")
-
-        if not mensagem:
+        if not numero or not mensagem:
             return jsonify({"status": "no message"}), 200
 
+        # remover sufixo @c.us
+        numero = numero.replace("@c.us", "")
         mensagem = mensagem.strip().lower()
 
         sessao = obter_sessao(numero)
