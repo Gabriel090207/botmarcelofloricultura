@@ -1,9 +1,9 @@
 import requests
+import os
 
 
-# CONFIGURAR DEPOIS
-ULTRAMSG_INSTANCE = "instance161393"
-ULTRAMSG_TOKEN = "8t1mtgzcr1koqulf"
+ULTRAMSG_INSTANCE = os.environ.get("ULTRAMSG_INSTANCE")
+ULTRAMSG_TOKEN = os.environ.get("ULTRAMSG_TOKEN")
 
 
 def enviar_mensagem(numero, mensagem):
@@ -15,10 +15,8 @@ def enviar_mensagem(numero, mensagem):
         "body": mensagem,
     }
 
-    try:
-        response = requests.post(url, data=payload)
-        return response.json()
+    response = requests.post(url, data=payload)
 
-    except Exception as e:
-        print("Erro ao enviar mensagem:", e)
-        return None
+    print("RESPOSTA ULTRAMSG:", response.text)
+
+    return response.text
