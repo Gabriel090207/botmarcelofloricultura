@@ -16,17 +16,11 @@ def enviar_mensagem(numero, mensagem):
     }
 
     response = requests.post(url, data=payload)
+    print("RESPOSTA CHAT:", response.text)
     return response.text
 
 
 def enviar_botoes(numero, titulo, texto, botoes):
-    """
-    botoes = [
-        {"id": "1", "title": "Serviço funerário"},
-        {"id": "9", "title": "Falar com atendente"}
-    ]
-    """
-
     url = f"https://api.ultramsg.com/{ULTRAMSG_INSTANCE}/messages/buttons"
 
     payload = {
@@ -34,8 +28,9 @@ def enviar_botoes(numero, titulo, texto, botoes):
         "to": numero,
         "title": titulo,
         "body": texto,
-        "buttons": botoes
+        "buttons": str(botoes)  # 🔥 IMPORTANTE
     }
 
-    response = requests.post(url, json=payload)
+    response = requests.post(url, data=payload)
+    print("RESPOSTA BOTAO:", response.text)
     return response.text
